@@ -7,41 +7,49 @@ namespace Shadowsocks.Controller
 {
     using Shadowsocks.Properties;
 
-    public class I18N
+    public static class I18N
     {
-        protected static Dictionary<string, string> Strings;
-        static I18N()
+        private static Dictionary<string, string> _strings = new Dictionary<string, string>();
+
+        private static void Init(string res)
         {
-            Strings = new Dictionary<string, string>();
-
-            if (CultureInfo.CurrentCulture.IetfLanguageTag.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
+            using (var sr = new StringReader(res))
             {
-                using (var sr = new StringReader(Resources.cn))
+                foreach (var line in sr.NonWhiteSpaceLines())
                 {
-                    foreach (var line in sr.NonWhiteSpaceLines())
-                    {
-                        if (line[0] == '#')
-                            continue;
+                    if (line[0] == '#')
+                        continue;
 
-                        var pos = line.IndexOf('=');
-                        if (pos < 1)
-                            continue;
-                        Strings[line.Substring(0, pos)] = line.Substring(pos + 1);
-                    }
+                    var pos = line.IndexOf('=');
+                    if (pos < 1)
+                        continue;
+                    _strings[line.Substring(0, pos)] = line.Substring(pos + 1);
                 }
             }
         }
 
-        public static string GetString(string key)
+        static I18N()
         {
-            if (Strings.ContainsKey(key))
+            string name = CultureInfo.CurrentCulture.EnglishName;
+            if (name.StartsWith("Chinese", StringComparison.OrdinalIgnoreCase))
             {
-                return Strings[key];
+                // choose Traditional Chinese only if we get explicit indication
+                Init(name.Contains("Traditional")
+                    ? Resources.zh_TW
+                    : Resources.zh_CN);
             }
-            else
+            else if (name.StartsWith("Japan", StringComparison.OrdinalIgnoreCase))
             {
-                return key;
+                Init(Resources.ja);
             }
         }
+
+        public static string GetString(string key, params object[] args)
+        {
+            return _strings.ContainsKey(key)
+                ? string.Format(_strings[key], args)
+                : string.Format(key, args);
+        }
+
     }
 }
